@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farcaster Mini App</title>
+    
+    <!-- Farcaster Mini App meta tags for sharing -->
+    <meta property="fc:miniapp" content='{
+        "name": "My Farcaster Mini App",
+        "image": "https://via.placeholder.com/600x400/8b5cf6/ffffff?text=Farcaster+Mini+App",
+        "buttonTitle": "Open App",
+        "splashImageUrl": "https://via.placeholder.com/600x400/667eea/ffffff?text=Loading...",
+        "splashBackgroundColor": "#667eea"
+    }' />
+    
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2rem;
+            font-weight: 600;
+        }
+
+        .user-info {
+            background: #f8fafc;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .user-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            margin: 0 auto 10px;
+            display: block;
+        }
+
+        .context-info {
+            background: #e0e7ff;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+            text-align: left;
+        }
+
+        .action-button {
+            background: linear-gradient(45deg, #8b5cf6, #3b82f6);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 16px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 10px 25px rgba(139, 92, 246, 0.3);
+            font-weight: 600;
+            margin: 10px;
+        }
+
+        .action-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(139, 92, 246, 0.4);
+        }
+
+        .action-button:active {
+            transform: translateY(-1px);
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 10px;
+            font-weight: 500;
+            min-height: 20px;
+        }
+
+        .success {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+
+        .error {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .info {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .cast-info {
+            background: #f1f5f9;
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            text-align: left;
+        }
+
+        .loading {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Farcaster Mini App</h1>
+        
+        <div id="userInfo" class="user-info" style="display: none;">
+            <img id="userAvatar" class="user-avatar" alt="User Avatar" />
+            <h3 id="userName">Loading user...</h3>
+            <p id="userFid">FID: Loading...</p>
+        </div>
+
+        <div id="contextInfo" class="context-info" style="display: none;">
+            <h4>App Context</h4>
+            <p><strong>Location:</strong> <span id="locationType">Unknown</span></p>
+            <p><strong>Platform:</strong> <span id="platformType">Unknown</span></p>
+            <div id="castInfo" class="cast-info" style="display: none;">
+                <h5>Shared Cast</h5>
+                <p><strong>Author:</strong> <span id="castAuthor"></span></p>
+                <p><strong>Text:</strong> <span id="castText"></span></p>
+            </div>
+        </div>
+
+        <div id="loadingMessage" class="status info">
+            🔄 Initializing Farcaster SDK...
+        </div>
+
+        <div id="actionButtons" style="display: none;">
+            <button class="action-button" onclick="shareThisApp()">
+                📤 Share This App
+            </button>
+
+            <button class="action-button" onclick="openCastComposer()">
+                ✍️ Create Cast
+            </button>
+
+            <button class="action-button" onclick="triggerHaptic()">
+                📳 Haptic Feedback
+            </button>
+        </div>
+
+        <div id="status" class="status"></div>
+    </div>
+
+    <script type="module">
+        import { sdk } from 'https://esm.sh/@farcaster/miniapp-sdk'
+        
+        // Make sdk available globally
+        window.farcasterSDK = sdk;
+        window.sdkReady = false;
+        
+        // Initialize the SDK
+        async function initializeSDK() {
+            try {
+                console.log('Initializing Farcaster SDK...');
+                
+                // First, wait a moment for the SDK to be fully loaded
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Call ready to indicate the app is loaded
+                await sdk.actions.ready();
+                
+                window.sdkReady = true;
+                console.log('Farcaster SDK ready!');
+                
+                // Hide loading message and show content
+                document.getElementById('loadingMessage').style.display = 'none';
+                document.getElementById('actionButtons').style.display = 'block';
+                
+                updateStatus('SDK initialized successfully! 🎉', 'success');
+                displayAppContext();
+                
+            } catch (error) {
+                console.error('Failed to initialize SDK:', error);
+                document.getElementById('loadingMessage').style.display = 'none';
+                document.getElementById('actionButtons').style.display = 'block';
+                
+                // Set ready to true anyway so the app is usable
+                window.sdkReady = true;
+                updateStatus(`SDK initialization warning: ${error.message}. App may have limited functionality.`, 'error');
+                
+                // Still try to display context
+                displayAppContext();
+            }
+        }
+        
+        // Start initialization
+        initializeSDK();
+
+        // Display app context information
+        function displayAppContext() {
+            try {
+                // Check if SDK and context are available
+                if (!window.farcasterSDK || !window.farcasterSDK.context) {
+                    console.log('SDK context not available, running in standalone mode');
+                    updateStatus('Running in standalone mode (outside Farcaster client)', 'info');
+                    return;
+                }
+                
+                const context = window.farcasterSDK.context;
+                console.log('App context:', context);
+                
+                // Display user information
+                if (context.user) {
+                    const userInfo = document.getElementById('userInfo');
+                    const userAvatar = document.getElementById('userAvatar');
+                    const userName = document.getElementById('userName');
+                    const userFid = document.getElementById('userFid');
+                    
+                    userInfo.style.display = 'block';
+                    if (context.user.pfpUrl) {
+                        userAvatar.src = context.user.pfpUrl;
+                        userAvatar.style.display = 'block';
+                    }
+                    userName.textContent = context.user.displayName || context.user.username || 'Anonymous User';
+                    userFid.textContent = `FID: ${context.user.fid}`;
+                }
+                
+                // Display context information
+                const contextInfo = document.getElementById('contextInfo');
+                const locationType = document.getElementById('locationType');
+                const platformType = document.getElementById('platformType');
+                
+                contextInfo.style.display = 'block';
+                locationType.textContent = context.location?.type || 'launcher';
+                platformType.textContent = context.client?.platformType || 'unknown';
+                
+                // Display cast information if available
+                if (context.location?.type === 'cast_share' && context.location.cast) {
+                    const castInfo = document.getElementById('castInfo');
+                    const castAuthor = document.getElementById('castAuthor');
+                    const castText = document.getElementById('castText');
+                    
+                    castInfo.style.display = 'block';
+                    castAuthor.textContent = context.location.cast.author.displayName || context.location.cast.author.username;
+                    castText.textContent = context.location.cast.text;
+                }
+                
+            } catch (error) {
+                console.error('Error displaying context:', error);
+                updateStatus(`Error loading context: ${error.message}`, 'error');
+            }
+        }
+
+        // Make functions available globally
+        window.displayAppContext = displayAppContext;
+    </script>
+
+    <script>
+        function updateStatus(message, type = 'info') {
+            const statusEl = document.getElementById('status');
+            statusEl.className = `status ${type}`;
+            statusEl.textContent = message;
+            
+            // Clear status after 3 seconds for success/info messages
+            if (type !== 'error') {
+                setTimeout(() => {
+                    statusEl.textContent = '';
+                    statusEl.className = 'status';
+                }, 3000);
+            }
+        }
+
+        async function shareThisApp() {
+            updateStatus('Opening share dialog...', 'info');
+            
+            try {
+                const currentUrl = window.location.href;
+                
+                // Try to use native Web Share API first (works outside Farcaster too)
+                if (navigator.share) {
+                    await navigator.share({
+                        title: 'Check out this Farcaster Mini App!',
+                        text: 'This is an awesome Farcaster Mini App with interactive features 🚀',
+                        url: currentUrl
+                    });
+                    updateStatus('Shared successfully!', 'success');
+                } else {
+                    // Fallback to clipboard
+                    const shareText = `Check out this Farcaster Mini App! 🚀 ${currentUrl}`;
+                    await navigator.clipboard.writeText(shareText);
+                    updateStatus('App URL copied to clipboard!', 'success');
+                }
+                
+            } catch (error) {
+                console.error('Share failed:', error);
+                if (error.name === 'AbortError') {
+                    updateStatus('Share cancelled by user', 'info');
+                } else {
+                    updateStatus(`Share failed: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function openCastComposer() {
+            updateStatus('Opening cast composer...', 'info');
+            
+            try {
+                // Try to open cast composer with fallback options
+                const composeUrl = 'https://warpcast.com/~/compose';
+                
+                if (window.farcasterSDK?.actions?.openUrl) {
+                    await window.farcasterSDK.actions.openUrl(composeUrl);
+                    updateStatus('Cast composer opened!', 'success');
+                } else {
+                    // Fallback - open in new tab
+                    window.open(composeUrl, '_blank');
+                    updateStatus('Cast composer opened in new tab!', 'success');
+                }
+                
+            } catch (error) {
+                console.error('Failed to open cast composer:', error);
+                // Final fallback
+                window.open('https://warpcast.com/~/compose', '_blank');
+                updateStatus('Opened Warpcast in new tab', 'success');
+            }
+        }
+
+        async function triggerHaptic() {
+            try {
+                // Check if we're in a Farcaster client with haptic support
+                const context = window.farcasterSDK?.context;
+                
+                if (context?.features?.haptics && window.farcasterSDK.haptics?.impactOccurred) {
+                    await window.farcasterSDK.haptics.impactOccurred('medium');
+                    updateStatus('Haptic feedback triggered! 📳', 'success');
+                } else if (navigator.vibrate) {
+                    // Fallback to browser vibration API
+                    navigator.vibrate(200);
+                    updateStatus('Vibration triggered (fallback)! 📳', 'success');
+                } else {
+                    updateStatus('Haptic feedback not supported on this platform', 'info');
+                }
+                
+            } catch (error) {
+                console.error('Haptic feedback failed:', error);
+                // Try browser vibration as final fallback
+                if (navigator.vibrate) {
+                    navigator.vibrate(200);
+                    updateStatus('Vibration triggered (fallback)! 📳', 'success');
+                } else {
+                    updateStatus('Haptic feedback not available', 'info');
+                }
+            }
+        }
+    </script>
+</body>
+</html>
